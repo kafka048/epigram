@@ -46,4 +46,5 @@ next-env.d.ts
 # personal notes
 model.md
 dbconnection.md
+auth.md
 
