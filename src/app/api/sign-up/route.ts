@@ -1,9 +1,9 @@
 import ConnectToDB from "@/src/lib/dbconnection";
 import { UserModel } from "../../model/usermodel";
 import bcrypt from "bcryptjs";
+import { sendVerificationEmail } from "@/src/lib/sendVerificationEmail";
 
-export async function POST(request: Request): Promise<Response> { 
-
+export async function POST(request: Request): Promise<Response> {
   try {
     await ConnectToDB();
     const { username, email, password } = await request.json();
@@ -22,15 +22,15 @@ export async function POST(request: Request): Promise<Response> {
       username,
     });
     if (existingUserWithUsername) {
-        return Response.json(
-          {
-            success: false,
-            message: "A user already exists with this username.",
-          },
-          {
-            status: 409,
-          },
-        );
+      return Response.json(
+        {
+          success: false,
+          message: "A user already exists with this username.",
+        },
+        {
+          status: 409,
+        },
+      );
     }
 
     const securePassword = await bcrypt.hash(password, 10);
@@ -58,18 +58,27 @@ export async function POST(request: Request): Promise<Response> {
         existingUserWithEmail.verificationCode = generateVerificationCode;
         existingUserWithEmail.verificationCodeExpiry = codeExpirationDate;
         await existingUserWithEmail.save();
+        try {
+          await sendVerificationEmail(email, generateVerificationCode);
+        } catch (error) {
+          console.error("Failed to send verification email:", error);
+        }
       }
     } else {
-      
       const newUser = new UserModel({
         username,
         email,
         hashedPassword: securePassword,
         verificationCode: generateVerificationCode,
         verificationCodeExpiry: codeExpirationDate,
-        isVerified: false
+        isVerified: false,
       });
       await newUser.save();
+      try {
+        await sendVerificationEmail(email, generateVerificationCode);
+      } catch (error) {
+        console.error("Failed to send verification email:", error);
+      }
     }
 
     return Response.json(
